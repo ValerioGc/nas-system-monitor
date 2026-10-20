@@ -24,7 +24,7 @@ const { telemetry, sensors, processes, error, actionError, acting, load, act } =
 
     <main
       class="content"
-      :class="{ 'content_processes': section === 'processes' }"
+      :class="{ content_processes: section === 'processes' }"
       data-testid="app_content"
     >
       <p v-if="error" class="alert" role="alert" data-testid="telemetry_error">

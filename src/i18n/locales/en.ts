@@ -33,8 +33,7 @@ export const en: typeof it = {
   durationDays: (days: number, hours: number) => `${days} d ${hours} h`,
   durationHours: (hours: number) => `${hours} h`,
 
-  processesIntro:
-    'Processes running on the system, divided by type.',
+  processesIntro: 'Processes running on the system, divided by type.',
   filterLabel: 'Processes to show',
   hideQuiet: 'Hide idle',
   hideQuietHint: 'Hides the waiting processes that use no processor, graphics or memory',
