@@ -2,5 +2,11 @@
 
 All notable changes to nas-system-monitor are documented in this file.
 
+## [0.9.1]
+
+### Changed
+
+- Update CHANGELOG for version 0.9.0 release.
+
 ## [0.9.0]
 - Initial release of nas-system-monitor.
