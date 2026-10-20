@@ -1,0 +1,22 @@
+{
+  "manifest_version": 1,
+  "app": {
+    "id": "nas-system-monitor",
+    "name": "System monitor",
+    "version": "0.9.0",
+    "icon": "icon.svg",
+    "category": "system",
+    "system": true
+  },
+  "run": {
+    "exec": "bin/nas-system-monitor-axum",
+    "socket": "/run/nas-os/apps/nas-system-monitor.sock"
+  },
+  "ui": {
+    "protocol": 1
+  },
+  "provides": [],
+  "permissions": {
+    "paths": ["/proc", "/sys"]
+  }
+}

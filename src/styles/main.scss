@@ -1,0 +1,61 @@
+@use '@valeriogc/nas-base-app/styles/_nas-theme.scss';
+@use '@valeriogc/nas-base-app/styles/partials/_reset.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-apps.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-scrollbar.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-buttons.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-controls.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-loading.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-switch.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-number-stepper.scss';
+@use '@valeriogc/nas-base-app/styles/_nas-modal.scss';
+@use './partials/theme';
+
+.action_button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--nas-border);
+  border-radius: 9px;
+  background: var(--nas-surface);
+  color: var(--nas-foreground);
+  font-weight: 650;
+
+  &:hover:not(:disabled) {
+    background: var(--nas-hover);
+  }
+}
+
+.icon_button {
+  --app-icon-size: 18px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--nas-muted);
+
+  &:hover:not(:disabled) {
+    color: var(--nas-foreground);
+  }
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+}
+
+.alert {
+  margin: 0;
+  padding: 14px 18px;
+  border-radius: 9px;
+  color: var(--nas-error);
+  background: color-mix(in srgb, var(--nas-error) 8%, var(--nas-panel));
+}
+
+.widget_view,
+.widget_view body {
+  background: var(--nas-surface);
+}
