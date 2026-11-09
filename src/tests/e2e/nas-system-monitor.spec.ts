@@ -55,8 +55,12 @@ async function openInShell(
         sensor('ram-usage', 'ram', 'RAM', 'usage', 'usage', 37.5),
         sensor('disk-sda-usage', 'disk', 'sda (WDC)', 'activity', 'usage', 2),
         sensor('disk-sda-temp-0', 'disk', 'sda (WDC)', 'temp1', 'temperature', 35),
+        sensor('disk-sdb-usage', 'disk', 'sdb (ST4000)', 'activity', 'usage', 0),
+        sensor('disk-sdc-usage', 'disk', 'sdc (ST8000)', 'activity', 'usage', 1),
       ],
     }),
+    'smart-disk': (_, { device }) =>
+      device === 'sdb' ? { standby: true } : { temperature: { current: 47 } },
     'process-action': ({ id, action }) => {
       const found = state.processes.find((item) => item.id === id);
       if (action === 'terminate' && !found.canTerminate) throw new Error(found.name + ' keeps the NAS working: it can only be restarted');
@@ -75,10 +79,10 @@ async function openInShell(
       return;
     }
     if (!(data.type in answers)) return;
-    window.asked.push([data.type, data.payload]);
+    window.asked.push([data.type, data.payload ?? data.device]);
     let answer;
     try {
-      answer = { success: true, data: answers[data.type](data.payload) };
+      answer = { success: true, data: answers[data.type](data.payload, data) };
     } catch (error) {
       answer = { success: false, error: error.message };
     }
@@ -195,6 +199,32 @@ test('the monitor shows the sensors part by part and chooses those of the widget
   await app.getByTestId('options_open').click();
   await app.getByTestId('options_list_system').click();
   await expect(app.getByTestId('options')).toContainText('sda (WDC) · Temperatura');
+});
+
+test('disk temperatures that no sensor gives are read on request, without waking a disk', async ({
+  page,
+}) => {
+  const app = await openInShell(page);
+  const disks = app.getByTestId('group_disk');
+  await expect(disks).toContainText('35 °C');
+  expect((await asked(page)).filter(([type]) => type === 'smart-disk')).toEqual([]);
+
+  const button = app.getByTestId('disk_read_temperatures');
+  await expect(button).toHaveAttribute('title', /non vengono svegliati/);
+  await button.click();
+
+  const smart = app.getByTestId('sensor_disk-sdc-smart');
+  await expect(smart).toContainText('47 °C');
+  await expect(smart).toContainText('sdc (ST8000) · S.M.A.R.T.');
+  await expect(smart).toHaveClass(/tone_warning/);
+  await expect(app.getByTestId('sensor_pin_disk-sdc-smart')).toHaveCount(0);
+  await expect(app.getByTestId('disk_note_sdb')).toHaveText(
+    'sdb (ST4000) · in standby, non svegliato',
+  );
+  expect((await asked(page)).filter(([type]) => type === 'smart-disk')).toEqual([
+    ['smart-disk', 'sdb'],
+    ['smart-disk', 'sdc'],
+  ]);
 });
 
 test('the processes are filtered, ended and restarted from their menu', async ({ page }) => {

@@ -23,3 +23,23 @@ export async function askNasShell<T>(
 
   return answer.data as T;
 }
+
+const SMART_TIMEOUT_MS = 45000;
+
+/**
+ * Reads the S.M.A.R.T. data of a disk through the launcher, which runs smartctl as root and leaves
+ * a spun down disk alone.
+ */
+export async function readSmart(device: string): Promise<unknown> {
+  const answer = await shell
+    .request('smart-disk', { device }, { timeoutMs: SMART_TIMEOUT_MS })
+    .catch(() => {
+      throw new Error('Launcher unavailable');
+    });
+
+  if (!answer.success) {
+    throw new Error(answer.error ?? 'S.M.A.R.T. unavailable');
+  }
+
+  return answer.data;
+}

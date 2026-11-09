@@ -1,4 +1,12 @@
-import type { ProcessEntry, ProcessFilter, Sensor, SensorGroup, SensorMetric } from '@/types';
+import { temperatureTone, type TemperatureSource } from '@valeriogc/nas-base-app';
+import type {
+  DiskReading,
+  ProcessEntry,
+  ProcessFilter,
+  Sensor,
+  SensorGroup,
+  SensorMetric,
+} from '@/types';
 
 export const GROUPS: SensorGroup[] = ['cpu', 'gpu', 'ram', 'disk'];
 
@@ -23,17 +31,64 @@ export function fill(sensor: Pick<Sensor, 'metric' | 'value'>) {
   return Math.min(Math.max(sensor.value / 100, 0), 1);
 }
 
-export function tone(sensor: Pick<Sensor, 'metric' | 'value'>) {
-  const [warm, hot] = sensor.metric === 'temperature' ? [70, 85] : [70, 90];
-  if (sensor.metric !== 'temperature' && sensor.metric !== 'usage') {
+type Judged = Pick<Sensor, 'metric' | 'value' | 'group' | 'device'>;
+
+function temperatureSource(sensor: Judged): TemperatureSource {
+  if (sensor.group !== 'disk') {
+    return 'chip';
+  }
+  return sensor.device.startsWith('nvme') ? 'nvme' : 'disk';
+}
+
+export function tone(sensor: Judged) {
+  if (sensor.metric === 'temperature') {
+    return temperatureTone(sensor.value, temperatureSource(sensor));
+  }
+  if (sensor.metric !== 'usage') {
     return 'normal';
   }
 
-  if (sensor.value >= hot) {
+  if (sensor.value >= 90) {
     return 'danger';
   }
 
-  return sensor.value >= warm ? 'warning' : 'normal';
+  return sensor.value >= 70 ? 'warning' : 'normal';
+}
+
+/**
+ * The disks whose sensors give no temperature, which only S.M.A.R.T. can tell. Their sensors are
+ * named `disk-<kernel name>-<reading>`.
+ */
+export function disksWithoutTemperature(sensors: Sensor[]) {
+  const disks = new Map<string, { name: string; device: string; warm: boolean }>();
+  for (const sensor of inGroup(sensors, 'disk')) {
+    const name = sensor.id.split('-')[1];
+    if (!name) {
+      continue;
+    }
+    const disk = disks.get(name) ?? { name, device: sensor.device, warm: false };
+    disk.warm ||= sensor.metric === 'temperature';
+    disks.set(name, disk);
+  }
+  return [...disks.values()]
+    .filter((disk) => !disk.warm)
+    .map(({ name, device }) => ({ name, device }));
+}
+
+/** What the S.M.A.R.T. answer of the launcher says about the temperature of a disk. */
+export function readingOf(data: unknown): DiskReading {
+  const answer = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  if (answer.standby === true) {
+    return { state: 'standby' };
+  }
+  const temperature = answer.temperature;
+  const current =
+    temperature && typeof temperature === 'object'
+      ? (temperature as Record<string, unknown>).current
+      : undefined;
+  return typeof current === 'number' && Number.isFinite(current)
+    ? { state: 'temperature', celsius: current }
+    : { state: 'missing' };
 }
 
 export function inGroup(sensors: Sensor[], group: SensorGroup) {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from '@/i18n';
 import { usePreferences, WIDGET_SENSOR_LIMIT } from '@/composables/usePreferences';
-import type { Sensor, SensorGroup, SystemMetrics } from '@/types';
-import { GROUPS, inGroup } from '@/utils/sensors';
+import { readSmart } from '@/services/nasShell';
+import type { DiskReading, Sensor, SensorGroup, SystemMetrics } from '@/types';
+import { disksWithoutTemperature, GROUPS, inGroup, readingOf } from '@/utils/sensors';
 import { NasIcon } from '@valeriogc/nas-base-app';
 
 import SensorCard from '@/components/monitor/SensorCard.vue';
@@ -27,6 +28,59 @@ const { t } = useI18n();
 const { preferences, toggleSensor } = usePreferences();
 
 const full = computed(() => preferences.value.widgetSensors.length >= WIDGET_SENSOR_LIMIT);
+
+const unread = computed(() => disksWithoutTemperature(props.sensors));
+const readings = ref<Record<string, DiskReading>>({});
+const reading = ref(false);
+
+const smartCards = computed(() =>
+  unread.value.flatMap(({ name, device }) => {
+    const found = readings.value[name];
+    return found?.state === 'temperature'
+      ? [
+          {
+            id: `disk-${name}-smart`,
+            group: 'disk' as const,
+            device,
+            label: 'smart',
+            metric: 'temperature' as const,
+            value: found.celsius,
+          },
+        ]
+      : [];
+  }),
+);
+
+const smartNotes = computed(() =>
+  unread.value.flatMap(({ name, device }) => {
+    const found = readings.value[name];
+    if (!found || found.state === 'temperature') {
+      return [];
+    }
+    const text =
+      found.state === 'failed'
+        ? t.value.diskReadFailed(found.reason)
+        : t.value.diskStates[found.state];
+    return [{ name, text: `${device} · ${text}` }];
+  }),
+);
+
+async function readTemperatures() {
+  reading.value = true;
+  const disks = unread.value;
+  const answers = await Promise.allSettled(disks.map(({ name }) => readSmart(name)));
+  readings.value = Object.fromEntries(
+    disks.map(({ name }, index): [string, DiskReading] => {
+      const answer = answers[index];
+      if (answer?.status === 'fulfilled') {
+        return [name, readingOf(answer.value)];
+      }
+      const reason = answer?.reason instanceof Error ? answer.reason.message : '';
+      return [name, { state: 'failed', reason }];
+    }),
+  );
+  reading.value = false;
+}
 
 const summary = computed(() => {
   const machine = props.metrics;
@@ -72,7 +126,20 @@ const summary = computed(() => {
       :aria-label="t.groups[group]"
       :data-testid="`group_${group}`"
     >
-      <h2><NasIcon :svg="GROUP_ICONS[group]" /> {{ t.groups[group] }}</h2>
+      <div class="group_heading">
+        <h2><NasIcon :svg="GROUP_ICONS[group]" /> {{ t.groups[group] }}</h2>
+        <button
+          v-if="group === 'disk' && unread.length"
+          type="button"
+          class="action_button"
+          :disabled="reading"
+          :title="t.readTemperaturesHint"
+          data-testid="disk_read_temperatures"
+          @click="readTemperatures"
+        >
+          {{ reading ? t.readingTemperatures : t.readTemperatures }}
+        </button>
+      </div>
       <div v-if="inGroup(sensors, group).length" class="sensor_grid">
         <SensorCard
           v-for="sensor in inGroup(sensors, group)"
@@ -82,8 +149,21 @@ const summary = computed(() => {
           :full="full"
           @toggle="toggleSensor(sensor.id)"
         />
+        <template v-if="group === 'disk'">
+          <SensorCard v-for="sensor in smartCards" :key="sensor.id" :sensor="sensor" />
+        </template>
       </div>
       <p v-else class="muted sensor_none">{{ t.noSensors }}</p>
+      <ul v-if="group === 'disk' && smartNotes.length" class="disk_notes" aria-live="polite">
+        <li
+          v-for="note in smartNotes"
+          :key="note.name"
+          class="muted"
+          :data-testid="`disk_note_${note.name}`"
+        >
+          {{ note.text }}
+        </li>
+      </ul>
     </section>
   </section>
 </template>
@@ -123,9 +203,27 @@ const summary = computed(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0 0 12px;
+    margin: 0;
     font-size: 17px;
   }
+}
+
+.group_heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+
+.disk_notes {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
 }
 
 .sensor_grid {

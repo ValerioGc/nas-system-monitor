@@ -36,5 +36,7 @@ it('writes the texts that take values the same way in both languages', () => {
     expect(texts.removeSensor('CPU')).toContain('CPU');
     expect(texts.moveSensorUp('CPU')).toContain('CPU');
     expect(texts.moveSensorDown('CPU')).toContain('CPU');
+    expect(texts.diskReadFailed('no disk')).toContain('no disk');
+    expect(texts.diskReadFailed('')).not.toContain('.');
   }
 });

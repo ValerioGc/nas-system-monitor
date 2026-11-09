@@ -5,7 +5,9 @@ import {
   filterProcesses,
   formatValue,
   inGroup,
+  disksWithoutTemperature,
   isQuiet,
+  readingOf,
   tone,
 } from '@/utils/sensors';
 import { PROCESSES, SENSORS, process, sensor } from '@/tests/fixtures/telemetry';
@@ -46,4 +48,38 @@ it('calls quiet a process that waits and uses nothing at all', () => {
   expect(isQuiet({ ...kworker, cpu: 0.1 })).toBe(false);
   expect(isQuiet({ ...kworker, gpu: 2 })).toBe(false);
   expect(isQuiet({ ...kworker, ram: 4 })).toBe(false);
+});
+
+it('judges a disk temperature by the limits of disks, lower than those of a processor', () => {
+  const disk = (device: string, value: number) =>
+    sensor({ group: 'disk', device, metric: 'temperature', value });
+  expect(tone(sensor({ metric: 'temperature', value: 50 }))).toBe('normal');
+  expect(tone(disk('sda (WDC)', 50))).toBe('warning');
+  expect(tone(disk('sda (WDC)', 56))).toBe('danger');
+  expect(tone(disk('nvme0n1 (Samsung)', 50))).toBe('normal');
+});
+
+it('asks S.M.A.R.T. only for the disks whose sensors give no temperature', () => {
+  expect(
+    disksWithoutTemperature([
+      ...SENSORS,
+      sensor({ id: 'disk-sdb-usage', group: 'disk', device: 'sdb (ST4000)', label: 'activity' }),
+      sensor({
+        id: 'disk-sdb-temp-0',
+        group: 'disk',
+        device: 'sdb (ST4000)',
+        metric: 'temperature',
+      }),
+    ]),
+  ).toEqual([{ name: 'sda', device: 'sda (WDC)' }]);
+});
+
+it('reads the temperature, the standby or the absence of both from a S.M.A.R.T. answer', () => {
+  expect(readingOf({ temperature: { current: 41 } })).toEqual({
+    state: 'temperature',
+    celsius: 41,
+  });
+  expect(readingOf({ standby: true, temperature: { current: 41 } })).toEqual({ state: 'standby' });
+  expect(readingOf({ smart_status: { passed: true } })).toEqual({ state: 'missing' });
+  expect(readingOf(null)).toEqual({ state: 'missing' });
 });

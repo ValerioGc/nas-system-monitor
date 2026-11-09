@@ -22,7 +22,18 @@ export const it = {
     'power limit': 'limite di potenza',
     processes: 'somma dei processi',
     'thermal zone': 'zona termica',
+    smart: 'S.M.A.R.T.',
   } as Record<string, string>,
+  readTemperatures: 'Leggi temperature',
+  readingTemperatures: 'Lettura in corso',
+  readTemperaturesHint:
+    'Legge la temperatura dei dischi dal S.M.A.R.T. I dischi in standby non vengono svegliati.',
+  diskStates: {
+    standby: 'in standby, non svegliato',
+    missing: 'nessuna temperatura dal S.M.A.R.T.',
+  },
+  diskReadFailed: (reason: string) =>
+    reason ? `lettura non riuscita. ${reason}` : 'lettura non riuscita',
   addToWidget: 'Mostra nel widget',
   removeFromWidget: 'Togli dal widget',
   widgetFull: 'Il widget mostra già sei sensori',

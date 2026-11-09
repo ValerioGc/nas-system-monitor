@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
-import { askNasShell } from '@/services/nasShell';
+import { askNasShell, readSmart } from '@/services/nasShell';
 
 let parent: { postMessage: ReturnType<typeof vi.fn> };
 let originalParent: PropertyDescriptor | undefined;
@@ -96,5 +96,48 @@ describe('the conversation with the shell', () => {
     Object.defineProperty(window, 'parent', { configurable: true, value: window });
 
     await expect(askNasShell('process-action')).rejects.toThrow('Launcher unavailable');
+  });
+});
+
+describe('the S.M.A.R.T. reading of a disk', () => {
+  it('names the disk at the top of the request and returns what the launcher read', async () => {
+    const read = readSmart('sdb');
+    expect(parent.postMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      nas: 1,
+      type: 'smart-disk',
+      device: 'sdb',
+    });
+    arrive({
+      nas: 1,
+      type: 'smart-disk-result',
+      requestId: lastRequest(),
+      success: true,
+      data: { standby: true },
+    });
+    await expect(read).resolves.toEqual({ standby: true });
+  });
+
+  it('passes on why the launcher could not read it', async () => {
+    const refused = readSmart('sdb');
+    arrive({
+      nas: 1,
+      type: 'smart-disk-result',
+      requestId: lastRequest(),
+      success: false,
+      error: 'device not found',
+    });
+    await expect(refused).rejects.toThrow('device not found');
+
+    const silent = readSmart('sdc');
+    arrive({ nas: 1, type: 'smart-disk-result', requestId: lastRequest(), success: false });
+    await expect(silent).rejects.toThrow('S.M.A.R.T. unavailable');
+  });
+
+  it('gives up when the launcher does not answer, as smartctl may take a while', async () => {
+    vi.useFakeTimers();
+    const unanswered = readSmart('sdb');
+    const failed = expect(unanswered).rejects.toThrow('Launcher unavailable');
+    await vi.advanceTimersByTimeAsync(45000);
+    await failed;
   });
 });

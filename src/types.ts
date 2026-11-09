@@ -13,6 +13,12 @@ export interface Sensor {
   value: number;
 }
 
+export type DiskReading =
+  | { state: 'temperature'; celsius: number }
+  | { state: 'standby' }
+  | { state: 'missing' }
+  | { state: 'failed'; reason: string };
+
 export type ProcessKind = 'user' | 'nas' | 'system';
 
 export type ProcessState = 'running' | 'sleeping' | 'waiting' | 'stopped' | 'zombie' | 'idle';
