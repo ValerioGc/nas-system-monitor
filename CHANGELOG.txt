@@ -2,6 +2,12 @@
 
 All notable changes to nas-system-monitor are documented in this file.
 
+## [0.9.3]
+
+### Added
+
+- Update dependencies and improve documentation for nas-system-monitor.
+
 ## [0.9.2]
 
 ### Added
