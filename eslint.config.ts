@@ -5,7 +5,19 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'backend', '.claude', 'test-results', 'coverage', 'release-assets'],
+    ignores: [
+      'dist',
+      'backend',
+      '.claude',
+      'src/tests/e2e/.features-gen',
+      'src/tests/e2e/allure-results',
+      'src/tests/e2e/allure-report',
+      'test-results',
+      'coverage',
+      'release-assets',
+      'build-reports',
+      '.playwright-results',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
